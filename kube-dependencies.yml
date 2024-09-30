@@ -1,0 +1,51 @@
+- hosts: all
+  become: yes
+  tasks:
+    - name: Ensure apt-transport-https, ca-certificates, and curl are installed
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gpg
+        state: present
+        update_cache: yes
+
+    - name: Ensure /etc/apt/keyrings directory exists
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download Kubernetes GPG key and save it to /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      ansible.builtin.shell: |
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      args:
+        creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg  # To prevent running this task every time
+
+    - name: Add Kubernetes APT repository
+      ansible.builtin.shell: |
+        echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list
+      args:
+        creates: /etc/apt/sources.list.d/kubernetes.list  # To prevent running this task every time
+
+    - name: Update APT cache
+      apt:
+        update_cache: yes
+
+    - name: Install kubelet
+      apt:
+        name: kubelet
+        state: present
+
+    - name: Install kubeadm
+      apt:
+        name: kubeadm
+        state: present
+
+    - name: Install kubectl (only on master)
+      apt:
+        name: kubectl
+        state: present
+      when: "'master' in inventory_hostname"
+

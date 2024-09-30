@@ -1,0 +1,24 @@
+- hosts: all
+  become: yes
+  tasks:
+    - name: Create the 'rabin' user
+      user:
+        name: rabin
+        append: yes
+        state: present
+        create_home: yes
+        shell: /bin/bash
+
+    - name: Allow 'rabin' to have passwordless sudo
+      lineinfile:
+        dest: /etc/sudoers
+        line: 'rabin ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+
+    - name: Set up authorized keys for the 'ubuntu' user
+      authorized_key:
+        user: ubuntu
+        key: "{{ lookup('file', '/home/ubuntu/kube-cluster/rabin-server.pem') }}"
+      with_file:
+        - - ~/.ssh/id_rsa.pub
+
